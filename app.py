@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
-# import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, roc_curve, precision_recall_curve
+from sklearn.metrics import PrecisionRecallDisplay, ConfusionMatrixDisplay, RocCurveDisplay
 from sklearn.metrics import precision_score, recall_score
 
 
@@ -32,32 +31,30 @@ def main():
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=0)
         return x_train, x_test, y_train, y_test
 
-    def plot_metrics(metrics_list, y_pred, y_score):
+    def plot_metrics(metrics_list):
         if 'Confusion Matrix' in metrics_list:
             st.subheader('Confusion Matrix')
-            confusion_matrix(y_test, y_pred)
+            ConfusionMatrixDisplay.from_estimator(model, x_test, y_test, display_labels=class_names)
             st.pyplot()
 
         if 'ROC Curve' in metrics_list:
             st.subheader('ROC Matrix')
-            # print(y_score)
-            roc_curve(y_test, y_score, pos_label=1)
+            RocCurveDisplay.from_estimator(model, x_test, y_test)
             st.pyplot()
 
         if 'Precision-Recall Curve' in metrics_list:
             st.subheader('Precision-Recall Curve')
-            precision_recall_curve(y_test, y_score, pos_label=1)
+            PrecisionRecallDisplay.from_estimator(model, x_test, y_test)
             st.pyplot()
 
     def processModel(metrics, model):
         model.fit(x_train, y_train)
         accuracy = model.score(x_test, y_test)
         y_pred = model.predict(x_test)
-        y_score = model.predict_proba(x_test)[:, 0]
         st.write("Accuracy: ", accuracy.round(2))
         st.write("Precision: ", precision_score(y_test, y_pred, labels=class_names).round(2))
         st.write("Recall: ", recall_score(y_test, y_pred, labels=class_names).round(2))
-        plot_metrics(metrics, y_pred, y_score)
+        plot_metrics(metrics)
 
     df = load_data()
     x_train, x_test, y_train, y_test = split(df)
@@ -77,7 +74,7 @@ def main():
 
         if st.sidebar.button("Classify", key='classify'):
             st.subheader("Support Vector Machine (SVM) Results")
-            model = SVC(C=C, kernel=kernel, gamma=gamma, probability=True)
+            model = SVC(C=C, kernel=kernel, gamma=gamma)
             processModel(metrics, model)
 
     elif classifier == "Logistic Regression":
@@ -99,9 +96,13 @@ def main():
                                                key="n_estimators")
         max_depth = st.sidebar.number_input("The maximum depth of the tree", 1, 20, step=1, key='max_depth')
         bootstrap = st.sidebar.radio("Bootstrap samples when building trees", ('True', 'False'), key="bootstrap")
+        if bootstrap == 'True':
+            bootstrap = True
+        else:
+            bootstrap = False
 
         metrics = st.sidebar.multiselect("What metrics to plot?",
-                                         'Confusion Matrix')
+                                         ('Confusion Matrix', 'ROC Curve', 'Precision-Recall Curve'))
 
         if st.sidebar.button("Classify", key='classify'):
             st.subheader("Random Forest Results")
